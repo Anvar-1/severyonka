@@ -7,10 +7,9 @@ from rest_framework_simplejwt.views import TokenBlacklistView
 
 urlpatterns = [
     path('register/', UserCreateView.as_view(), name='user-register'),
-    # path('login/', UserLoginView.as_view(), name='login'),
     path('login/', LoginAPIView.as_view(), name='login'),
     path('logout/', LogOutAPIView.as_view(), name='logout'),
-    path('delete/', UserDeleteView.as_view(), name='delete'),
+    path('delete/<int:pk>/', UserDeleteView.as_view(), name='delete'),
     path('update/<int:pk>/', UserUpdateView.as_view(), name='update'),
     path('token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),

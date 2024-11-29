@@ -9,12 +9,12 @@ from .serializers import UserSerializer, ChangeUserInformation, LogoutSerializer
 from rest_framework.authtoken.views import ObtainAuthToken
 from rest_framework.authtoken.models import Token
 from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated
 from rest_framework.exceptions import AuthenticationFailed
 from rest_framework import generics, permissions, status
-from rest_framework_simplejwt.views import TokenObtainPairView
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth import get_user_model
+from rest_framework_simplejwt.exceptions import TokenError
+from rest_framework.permissions import IsAuthenticated
 from .serializers import UserSerializer
 
 User = get_user_model()
@@ -70,7 +70,7 @@ class UserDeleteView(generics.DestroyAPIView):
     def delete(self, request, *args, **kwargs):
         user = self.get_object()
         user.delete()
-        return Response(status=status.HTTP_204_NO_CONTENT)
+        return Response({'success': True, 'message': "Muvaffaqiyatli hisobdan o'chirildingiz!"},status=status.HTTP_204_NO_CONTENT)
 
 
 class UserUpdateView(generics.UpdateAPIView):
