@@ -33,6 +33,7 @@ INSTALLED_APPS = [
     "phonenumber_field",
 
     'config.register',
+    'config.products',
 ]
 
 MIDDLEWARE = [
@@ -127,6 +128,10 @@ REST_FRAMEWORK = {
         'rest_framework.authentication.BasicAuthentication',
     ),
 }
+
+
+MEDIA_URL = '/media/'
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
 SIMPLE_JWT = {
     "ACCESS_TOKEN_LIFETIME": timedelta(days=10),

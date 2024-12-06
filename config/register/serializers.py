@@ -1,14 +1,9 @@
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
-import random
-from rest_framework.generics import get_object_or_404
-from rest_framework_simplejwt.tokens import AccessToken
 from .models import User
-from django.contrib.auth.models import update_last_login
 from django.contrib.auth.password_validation import validate_password
 import requests
 from django.contrib.auth import get_user_model
-from rest_framework_simplejwt.serializers import TokenObtainPairSerializer, TokenRefreshSerializer
 
 User = get_user_model()
 

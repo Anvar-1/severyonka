@@ -1,9 +1,7 @@
-from django.contrib.auth import user_logged_in, authenticate, login
 from django.contrib.auth.hashers import check_password
 from rest_framework.exceptions import ValidationError
 from rest_framework.generics import UpdateAPIView, CreateAPIView
 from rest_framework.views import APIView
-from rest_framework_simplejwt.exceptions import TokenError
 from .models import User
 from .serializers import UserSerializer, ChangeUserInformation, LogoutSerializer
 from rest_framework.authtoken.views import ObtainAuthToken
@@ -68,7 +66,7 @@ class UserDeleteView(generics.DestroyAPIView):
     queryset = User.objects.all()
 
     def delete(self, request, *args, **kwargs):
-        user = self.get_object()
+        user = self.request.user
         user.delete()
         return Response({'success': True, 'message': "Muvaffaqiyatli hisobdan o'chirildingiz!"},status=status.HTTP_204_NO_CONTENT)
 
@@ -79,7 +77,7 @@ class UserUpdateView(generics.UpdateAPIView):
     serializer_class = UserSerializer
 
     def put(self, request, *args, **kwargs):
-        user = self.get_object()
+        user = self.request.user
         serializer = self.get_serializer(user, data=request.data, partial=True)
         if serializer.is_valid():
             serializer.save()
