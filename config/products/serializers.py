@@ -1,5 +1,7 @@
 from rest_framework import serializers
-from .models import Category, Product, Card, Comment
+from rest_framework.exceptions import ValidationError
+from .models import Category, Product, Card, Comment, Order, Discount
+from ..register.serializers import UserSerializer
 
 
 class CategorySerializer(serializers.ModelSerializer):
@@ -7,10 +9,24 @@ class CategorySerializer(serializers.ModelSerializer):
         model = Category
         fields = ['id', 'name']
 
+
+class DiscountSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Discount
+        fields = ['id', 'product', 'percentage', 'start_date', 'end_date']
+
+
 class ProductSerializer(serializers.ModelSerializer):
+    discounts = DiscountSerializer(many=True, read_only=True) ######## aksiya ##########
+
     class Meta:
         model = Product
-        fields = ['id', 'name', 'description', 'brand', 'title', 'created_at', 'price', 'image', 'card_number', 'category_id']
+        fields = ['id', 'name', 'description', 'brand', 'title', 'created_at', 'price', 'image', 'card_number', 'category_id', 'discounts']
+
+    def validate_image(self, value):
+        if not value.name.endswith(('jpg', 'jpeg', 'png')):
+            raise ValidationError("Image must be in JPG, JPEG, or PNG format.")
+        return value
 
 class CardSerializer(serializers.ModelSerializer):
     class Meta:
@@ -34,5 +50,27 @@ class CommentSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Comment
-        fields = ['id', 'product', 'user', 'created_at', 'text']
+        fields = ['id', 'product', 'user', 'created_at', 'comment']
         read_only_fields = ['id', 'created_at']
+
+
+class OrderSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = Order
+        fields = ['id', 'user', 'product', 'address', 'created_at']
+        # read_only_fields = ['id', 'created_at']
+
+
+class MyOderListSerializers(serializers.ModelSerializer):
+    user = UserSerializer()
+    product = ProductSerializer()
+    class Meta:
+        model = Order
+        fields = ('id', 'user', 'product', 'address', 'created_at')
+
+
+
+
+
+
