@@ -6,8 +6,8 @@ from rest_framework_simplejwt.tokens import RefreshToken
 
 class User(AbstractUser):
     phone = models.CharField(max_length=15, unique=True, help_text="+998950701662")
-    number_card = models.CharField(max_length=30, unique=True)
-    email = models.EmailField(unique=True)
+    number_card = models.CharField(max_length=16, unique=True, null=True, blank=True)
+    email = models.EmailField(max_length=100, unique=True, null=True, blank=True)
     birth_day = models.CharField(max_length=30, help_text="kun.oy.yil (01.06.2004)")
     gender = models.CharField(max_length=10, choices=[('male', 'Male'), ('female', 'Female')])
     region = models.CharField(max_length=100)
