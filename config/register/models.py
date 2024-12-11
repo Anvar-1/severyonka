@@ -47,3 +47,12 @@ class User(AbstractUser):
     def __str__(self):
         return self.phone
 
+
+class UserProfile(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE)
+    phone_number = models.CharField(max_length=13, unique=True, blank=True, null=True)
+    address = models.CharField(max_length=255, blank=True, null=True)
+
+    def __str__(self):
+        return self.user.name
+

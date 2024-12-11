@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
-from .models import User
+from .models import User, UserProfile
 from django.contrib.auth.password_validation import validate_password
 import requests
 from django.contrib.auth import get_user_model
@@ -134,3 +134,26 @@ class LogoutSerializer(serializers.Serializer):
     refresh = serializers.CharField()
 
 
+class UserProfileSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = ['phone', 'password', 'confirm_password']
+
+
+
+##################### reset-password ##########################
+
+class PhoneSerializer(serializers.Serializer):
+    phone = serializers.CharField(max_length=15)
+
+class CodeSerializer(serializers.Serializer):
+    code = serializers.CharField(max_length=4)
+
+class ResetPasswordSerializer(serializers.Serializer):
+    new_password = serializers.CharField(max_length=128)
+    confirm_password = serializers.CharField(max_length=128)
+
+    def validate(self, data):
+        if data['new_password'] != data['confirm_password']:
+            raise serializers.ValidationError("Passwords do not match.")
+        return data

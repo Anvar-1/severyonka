@@ -1,12 +1,12 @@
 from django.contrib.auth.hashers import check_password
 from rest_framework.exceptions import ValidationError
-from rest_framework.generics import UpdateAPIView, CreateAPIView
+from rest_framework.generics import UpdateAPIView, CreateAPIView, GenericAPIView
 from rest_framework.views import APIView
-from .models import User
-from .serializers import UserSerializer, ChangeUserInformation, LogoutSerializer
+from .models import User, UserProfile
+from .serializers import UserSerializer, ChangeUserInformation, LogoutSerializer, \
+    UserProfileSerializer, ResetPasswordSerializer, CodeSerializer, PhoneSerializer
 from rest_framework.authtoken.views import ObtainAuthToken
 from rest_framework.authtoken.models import Token
-from rest_framework.response import Response
 from rest_framework.exceptions import AuthenticationFailed
 from rest_framework import generics, permissions, status
 from rest_framework_simplejwt.tokens import RefreshToken
@@ -14,7 +14,8 @@ from django.contrib.auth import get_user_model
 from rest_framework_simplejwt.exceptions import TokenError
 from rest_framework.permissions import IsAuthenticated
 from .serializers import UserSerializer
-
+from rest_framework.response import Response
+import requests
 User = get_user_model()
 
 
@@ -151,6 +152,124 @@ class ChangeUserInformationView(UpdateAPIView):
             'auth_status': self.request.user.auth_status,
         }
         return Response(data, status=200)
+
+
+
+class UserProfileView(generics.RetrieveUpdateAPIView):
+    serializer_class = UserProfileSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_object(self):
+        return self.request.user
+
+
+#####################  reset-password ########################
+class SendCodeView(generics.GenericAPIView):
+    serializer_class = PhoneSerializer
+
+    def post(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        phone = serializer.validated_data['phone']
+
+        try:
+            user = User.objects.get(phone=phone)
+            request.session['phone'] = phone  # Telefon raqamini sessiyada saqlash
+            code = user.create_verify_code()  # Generate and save the code
+
+            # Send the verification code via SMS
+            self.send_sms(phone, code)
+
+            return Response({"message": "Verification code sent.", "access": user.token()['access']}, status=status.HTTP_200_OK)
+        except User.DoesNotExist:
+            return Response({"error": "User not found."}, status=status.HTTP_404_NOT_FOUND)
+
+    def send_sms(self, phone, code):
+        # Eskiz SMS API autentifikatsiya
+        auth_url = "http://notify.eskiz.uz/api/auth/login"
+        auth_payload = {
+            'email': 'imronhoja336@mail.ru',
+            'password': 'ombeUIUC8szPawGi3TXgCjDXDD0uAIx2AmwLlX9M'
+        }
+
+        auth_response = requests.post(auth_url, data=auth_payload)
+        auth_data = auth_response.json()
+
+        if 'data' in auth_data:
+            token = auth_data['data']['token']
+            sms_url = "http://notify.eskiz.uz/api/message/sms/send"
+            sms_payload = {
+                'mobile_phone': str(phone),
+                'message': f"Envoy ilovasiga ro‘yxatdan o‘tish uchun tasdiqlash kodi: {code}",
+                'from': '4546',
+                'callback_url': 'http://0000.uz/test.php'
+            }
+
+            sms_headers = {
+                'Authorization': f'Bearer {token}'
+            }
+
+            sms_response = requests.post(sms_url, headers=sms_headers, data=sms_payload)
+            if sms_response.status_code == 200:
+                print("SMS muvaffaqiyatli jo'natildi.")
+            else:
+                print("SMS jo'natishda xato:", sms_response.text)
+        else:
+            print("Autentifikatsiya xatosi:", auth_data)
+
+class VerifyCodeView(generics.GenericAPIView):
+    serializer_class = CodeSerializer
+
+    def post(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        code = serializer.validated_data['code']
+
+        phone = request.session.get('phone')
+        if not phone:
+            return Response({"error": "Phone number not provided."}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Access tokenni olish
+        token = request.META.get('HTTP_AUTHORIZATION')
+        if not token or not token.startswith('Bearer '):
+            return Response({"error": "Token not provided."}, status=status.HTTP_401_UNAUTHORIZED)
+
+        try:
+            user = User.objects.get(phone=phone)
+            if user.code == code:
+                return Response({"message": "Code verified. Proceed to reset password."}, status=status.HTTP_200_OK)
+            else:
+                return Response({"error": "Invalid code."}, status=status.HTTP_400_BAD_REQUEST)
+        except User.DoesNotExist:
+            return Response({"error": "User not found."}, status=status.HTTP_404_NOT_FOUND)
+
+
+class ResetPasswordView(generics.GenericAPIView):
+    serializer_class = ResetPasswordSerializer
+
+    def post(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        phone = request.session.get('phone')
+        if not phone:
+            return Response({"error": "Phone number not provided."}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Access tokenni olish
+        token = request.META.get('HTTP_AUTHORIZATION')
+        if not token or not token.startswith('Bearer '):
+            return Response({"error": "Token not provided."}, status=status.HTTP_401_UNAUTHORIZED)
+
+        try:
+            user = User.objects.get(phone=phone)
+            user.set_password(serializer.validated_data['new_password'])  # Yangi parolni o'rnatish
+            user.save()
+            return Response({"message": "Password has been reset successfully."}, status=status.HTTP_200_OK)
+        except User.DoesNotExist:
+            return Response({"error": "User not found."}, status=status.HTTP_404_NOT_FOUND)
+
+
+
 
 
 
