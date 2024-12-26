@@ -1,6 +1,7 @@
 from django.urls import path
-from .views import UserCreateView, UserAuthToken, LoginAPIView, LogOutAPIView, UserDeleteView, UserUpdateView, \
-    VerifyCodeAPIView, ChangeUserInformationView, UserProfileView, SendCodeView, VerifyCodeView, ResetPasswordView
+from .views import UserCreateView, LoginAPIView, LogOutAPIView, UserDeleteView, UserUpdateView, \
+    VerifyCodeAPIView, ChangeUserInformationView, UserProfileView, SendCodeView, VerifyCodeView, ResetPasswordView, \
+    CheckUserView
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from rest_framework_simplejwt.views import TokenBlacklistView
 
@@ -9,6 +10,7 @@ from rest_framework_simplejwt.views import TokenBlacklistView
 urlpatterns = [
     path('register/', UserCreateView.as_view(), name='user-register'),
     path('login/', LoginAPIView.as_view(), name='login'),
+    path('check-user/', CheckUserView.as_view(), name='check-user'),
     path('logout/', LogOutAPIView.as_view(), name='logout'),
     path('delete/', UserDeleteView.as_view(), name='delete'),
     path('update/', UserUpdateView.as_view(), name='update'),

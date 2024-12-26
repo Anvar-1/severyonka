@@ -21,12 +21,12 @@ class ProductSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Product
-        fields = ['id', 'name', 'description', 'brand', 'title', 'created_at', 'price', 'image', 'card_number', 'category_id', 'discounts']
+        fields = ['id', 'name', 'description', 'brand', 'title', 'created_at', 'price', 'image', 'card_number', 'category_id', 'discounts', 'status']
 
-    def validate_image(self, value):
-        if not value.name.endswith(('jpg', 'jpeg', 'png')):
-            raise ValidationError("Image must be in JPG, JPEG, or PNG format.")
-        return value
+    # def validate_image(self, value):
+    #     if not value.name.endswith(('jpg', 'jpeg', 'png')):
+    #         raise ValidationError("Image must be in JPG, JPEG, or PNG format.")
+    #     return     value
 
 class CardSerializer(serializers.ModelSerializer):
     class Meta:
@@ -58,7 +58,7 @@ class OrderSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Order
-        fields = ['id', 'user', 'product', 'address', 'created_at']
+        fields = ['id', 'user', 'product', 'address', 'amount', 'created_at']
         # read_only_fields = ['id', 'created_at']
 
 
@@ -67,7 +67,7 @@ class MyOderListSerializers(serializers.ModelSerializer):
     product = ProductSerializer()
     class Meta:
         model = Order
-        fields = ('id', 'user', 'product', 'address', 'created_at')
+        fields = ('id', 'user', 'product', 'address', 'amount', 'created_at')
 
 
 

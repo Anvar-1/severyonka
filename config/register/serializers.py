@@ -1,6 +1,9 @@
-from rest_framework import serializers
+from rest_framework import serializers, status
 from rest_framework.exceptions import ValidationError
-from .models import User, UserProfile
+from rest_framework.response import Response
+
+from . import views
+from .models import User, UserProfile, SmsVerification
 from django.contrib.auth.password_validation import validate_password
 import requests
 from django.contrib.auth import get_user_model
@@ -9,61 +12,13 @@ User = get_user_model()
 
 
 class UserSerializer(serializers.ModelSerializer):
+    confirm_password = serializers.CharField(write_only=True)
 
     class Meta:
         model = User
-        fields = ['id', 'username', 'email', 'phone', 'password', 'confirm_password', 'number_card', 'birth_day', 'gender',
+        fields = ['id', 'username', 'email', 'phone', 'password', 'confirm_password', 'number_card', 'role', 'birth_day', 'gender',
                   'region', 'populated_area']
         extra_kwargs = {'password': {'write_only': True}}
-
-
-    def to_representation(self, instance):
-        data = super(UserSerializer, self).to_representation(instance)
-        data.update(instance.token())
-        return data
-
-########################  eskiz sms ################################
-
-    def create(self,  validated_data):
-        user = super(UserSerializer, self).create(validated_data)
-        if user.phone:
-            code = user.create_verify_code()
-        url = "http://notify.eskiz.uz/api/auth/login"
-
-        payload = {'email': 'imronhoja336@mail.ru',
-                  'password': 'ombeUIUC8szPawGi3TXgCjDXDD0uAIx2AmwLlX9M'}
-        files = [
-
-        ]
-        headers = {
-            # 'Authorization': f"{Bearer}"
-        }
-
-        response = requests.request("POST", url, headers=headers, data=payload, files=files)
-
-        token1 = response.json()["data"]["token"]
-
-        url = "http://notify.eskiz.uz/api/message/sms/send"
-
-        payload = {'mobile_phone': str(user.phone),
-                  'message': f"Envoy ilovasiga ro‘yxatdan o‘tish uchun tasdiqlash kodi: {code}",
-                  'from': '4546',
-                  'callback_url': 'http://0000.uz/test.php'}
-        files = [
-
-        ]
-
-        headers = {
-            'Authorization': f"Bearer {token1}"
-        }
-
-        response = requests.request("POST", url, headers=headers, data=payload, files=files)
-
-
-        print(response.text)
-        print(code)
-        user.save()
-        return user
 
     def validate(self, attrs):
         password = attrs.get("password")
@@ -71,9 +26,32 @@ class UserSerializer(serializers.ModelSerializer):
         if password != confirm_password:
             raise ValidationError("Parollar bir-biriga mos emas!")
         return attrs
-        print(attrs)
+
+    def to_representation(self, instance):
+        data = super(UserSerializer, self).to_representation(instance)
+        data['password'] = instance.password  # Parolni qo'shish
+        return data
 
 
+###################### sms kodni tekshirish ########################
+
+class VerifyCodeSerializer(serializers.Serializer):
+    phone = serializers.CharField(max_length=13)
+    code = serializers.CharField(max_length=4)
+
+    def validate(self, attrs):
+        phone = attrs['phone']
+        code = attrs['code']
+
+        try:
+            verification = SmsVerification.objects.get(user__phone=phone)
+        except SmsVerification.DoesNotExist:
+            raise serializers.ValidationError("SMS kodi topilmadi.")
+
+        if not verification.is_code_valid(code):
+            raise serializers.ValidationError("SMS kodi noto'g'ri yoki muddati o'tgan.")
+
+        return attrs
 
      ####################### EDIT PROFILE ###################
 
@@ -144,7 +122,7 @@ class UserProfileSerializer(serializers.ModelSerializer):
 ##################### reset-password ##########################
 
 class PhoneSerializer(serializers.Serializer):
-    phone = serializers.CharField(max_length=15)
+    phone = serializers.CharField(max_length=13)
 
 class CodeSerializer(serializers.Serializer):
     code = serializers.CharField(max_length=4)

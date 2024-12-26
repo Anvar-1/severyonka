@@ -2,13 +2,13 @@ from django.contrib.auth.hashers import check_password
 from rest_framework.exceptions import ValidationError
 from rest_framework.generics import UpdateAPIView, CreateAPIView, GenericAPIView
 from rest_framework.views import APIView
-from .models import User, UserProfile
+from .models import User, UserProfile, SmsVerification
 from .serializers import UserSerializer, ChangeUserInformation, LogoutSerializer, \
-    UserProfileSerializer, ResetPasswordSerializer, CodeSerializer, PhoneSerializer
+    UserProfileSerializer, ResetPasswordSerializer, CodeSerializer, PhoneSerializer, VerifyCodeSerializer
 from rest_framework.authtoken.views import ObtainAuthToken
 from rest_framework.authtoken.models import Token
 from rest_framework.exceptions import AuthenticationFailed
-from rest_framework import generics, permissions, status
+from rest_framework import generics, permissions, status, views
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth import get_user_model
 from rest_framework_simplejwt.exceptions import TokenError
@@ -16,35 +16,141 @@ from rest_framework.permissions import IsAuthenticated
 from .serializers import UserSerializer
 from rest_framework.response import Response
 import requests
-User = get_user_model()
+from rest_framework import views, status
 
+User = get_user_model()
 
 class UserCreateView(generics.CreateAPIView):
     queryset = User.objects.all()
     serializer_class = UserSerializer
 
-class UserAuthToken(ObtainAuthToken):
-    def post(self, request, *args, **kwargs):
-        serializer = self.serializer_class(data=request.data, context={'request': request})
+    def perform_create(self, serializer):
+        serializer.save(role=self.request.data.get('role', 'user'))
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        user = serializer.validated_data['user']
-        token, created = Token.objects.get_or_create(user=user)
-        return Response({'token': token.key})
+        user = serializer.save()
+
+        refresh = RefreshToken.for_user(user)
+
+        if user.phone:
+            code = user.create_verify_code()
+            self.send_sms(user.phone, code)  # SMS yuborish
+
+        return Response({
+            "message": "Foydalanuvchi muvaffaqiyatli ro'yxatdan o'tdi.",
+            "user": {
+                "id": user.id,
+                "username": user.username,
+                "email": user.email,
+                "phone": user.phone,
+                "number_card": user.number_card,
+                "birth_day": user.birth_day,
+                "gender": user.gender,
+                "region": user.region,
+                "populated_area": user.populated_area,
+                "password": request.data.get('password'),
+                "confirm_password": request.data.get('confirm_password')
+            },
+            "sms_code": code,
+            "access": str(refresh.access_token),  # Access token
+            "refresh": str(refresh)  # Refresh token
+        }, status=status.HTTP_201_CREATED)
+
+
+    def send_sms(self, phone, code):
+        # Eskiz SMS API autentifikatsiya
+        auth_url = "http://notify.eskiz.uz/api/auth/login"
+        auth_payload = {
+            'email': 'imronhoja336@mail.ru',
+            'password': 'ombeUIUC8szPawGi3TXgCjDXDD0uAIx2AmwLlX9M'
+        }
+
+        auth_response = requests.post(auth_url, data=auth_payload)
+        auth_data = auth_response.json()
+
+        if 'data' in auth_data:
+            token = auth_data['data']['token']
+            sms_url = "http://notify.eskiz.uz/api/message/sms/send"
+            sms_payload = {
+                'mobile_phone': str(phone),
+                'message': f"Envoy ilovasiga ro‘yxatdan o‘tish uchun tasdiqlash kodi: {code}",
+                'from': '4546',
+                'callback_url': 'http://0000.uz/test.php'
+            }
+
+            sms_headers = {
+                'Authorization': f'Bearer {token}'
+            }
+
+            sms_response = requests.post(sms_url, headers=sms_headers, data=sms_payload)
+            if sms_response.status_code == 200:
+                print("SMS muvaffaqiyatli jo'natildi.")
+            else:
+                print("SMS jo'natishda xato:", sms_response.text)
+        else:
+            print("Autentifikatsiya xatosi:", auth_data)
+
 
 
 class LoginAPIView(APIView):
     def post(self, request):
-        data = request.data
-        user = User.objects.filter(phone=data['phone']).first()
+        phone = request.data.get('phone')
+        password = request.data.get('password')
+
+        if not phone or not password:
+            return Response({'error': 'Telefon raqami yoki parol ko\'rsatilmagan.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        user = User.objects.filter(phone=phone).first()
+
         if not user:
             return Response({'message': 'Bunday foydalanuvchi topilmadi!'}, status=status.HTTP_404_NOT_FOUND)
 
-        if check_password(data['password'], user.password):
-            return Response({'token': user.token()['access'], "message": 'Yahhooo'}, status=status.HTTP_200_OK)
-        print("Passwordjon", data['password'])
-        print("Phonejon", data['phone'])
+        if check_password(password, user.password):
+            return Response({
+                'token': user.token()['access'],
+                'role': user.role,
+                "message": 'ok'
+            }, status=status.HTTP_200_OK)
 
         return Response({'error': 'Parolingiz xato'}, status=status.HTTP_400_BAD_REQUEST)
+
+####################   bu login da agar user bazada bulsa  tru yoki false qaytaradi #####################
+
+class CheckUserView(views.APIView):
+    def post(self, request):
+        phone = request.data.get('phone')
+
+        if not phone:
+            return Response({"error": "Telefon raqami kerak."}, status=status.HTTP_400_BAD_REQUEST)
+
+        user_exists = User.objects.filter(phone=phone).exists()
+
+        return Response({"exists": user_exists}, status=status.HTTP_200_OK)
+
+
+############################################################################################
+
+class VerifyCodeView(generics.GenericAPIView):
+    serializer_class = VerifyCodeSerializer
+
+    def post(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        phone = serializer.validated_data['phone']
+        code = serializer.validated_data['code']
+
+        try:
+            user = User.objects.get(phone=phone)
+            if user.code == code:
+                return Response({"message": "Kod tasdiqlandi. Parolni tiklashni davom eting."},
+                                status=status.HTTP_200_OK)
+            else:
+                return Response({"error": "Yaroqsiz kod."}, status=status.HTTP_400_BAD_REQUEST)
+        except User.DoesNotExist:
+            return Response({"error": "Foydalanuvchi topilmadi."}, status=status.HTTP_404_NOT_FOUND)
 
 
 class LogOutAPIView(APIView):
@@ -86,6 +192,7 @@ class UserUpdateView(generics.UpdateAPIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
+
 class VerifyCodeAPIView(APIView):
     permission_classes = (IsAuthenticated,)
 
@@ -93,6 +200,9 @@ class VerifyCodeAPIView(APIView):
         user = self.request.user
         code = self.request.data.get('code')
         self.check_verify(user, code)
+
+        user.is_confirmed = True  # Kod to'g'ri bo'lsa tasdiqlash
+        user.save()
 
         return Response(
             data={
@@ -127,7 +237,6 @@ class VerifyCodeAPIView(APIView):
 ####################  EDIT PROFILE #################
 
 class ChangeUserInformationView(UpdateAPIView):
-    # permission_classes = [IsAuthenticated, ]
     serializer_class = ChangeUserInformation
     http_method_names = ['patch', 'put']
 
@@ -164,6 +273,7 @@ class UserProfileView(generics.RetrieveUpdateAPIView):
 
 
 #####################  reset-password ########################
+
 class SendCodeView(generics.GenericAPIView):
     serializer_class = PhoneSerializer
 
@@ -180,9 +290,9 @@ class SendCodeView(generics.GenericAPIView):
             # Send the verification code via SMS
             self.send_sms(phone, code)
 
-            return Response({"message": "Verification code sent.", "access": user.token()['access']}, status=status.HTTP_200_OK)
+            return Response({"message": "Tasdiqlash kodi yuborildi.", "access": user.token()['access']}, status=status.HTTP_200_OK)
         except User.DoesNotExist:
-            return Response({"error": "User not found."}, status=status.HTTP_404_NOT_FOUND)
+            return Response({"error": "Foydalanuvchi topilmadi."}, status=status.HTTP_404_NOT_FOUND)
 
     def send_sms(self, phone, code):
         # Eskiz SMS API autentifikatsiya
@@ -217,32 +327,32 @@ class SendCodeView(generics.GenericAPIView):
         else:
             print("Autentifikatsiya xatosi:", auth_data)
 
-class VerifyCodeView(generics.GenericAPIView):
-    serializer_class = CodeSerializer
-
-    def post(self, request, *args, **kwargs):
-        serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        code = serializer.validated_data['code']
-
-        phone = request.session.get('phone')
-        if not phone:
-            return Response({"error": "Phone number not provided."}, status=status.HTTP_400_BAD_REQUEST)
-
-        # Access tokenni olish
-        token = request.META.get('HTTP_AUTHORIZATION')
-        if not token or not token.startswith('Bearer '):
-            return Response({"error": "Token not provided."}, status=status.HTTP_401_UNAUTHORIZED)
-
-        try:
-            user = User.objects.get(phone=phone)
-            if user.code == code:
-                return Response({"message": "Code verified. Proceed to reset password."}, status=status.HTTP_200_OK)
-            else:
-                return Response({"error": "Invalid code."}, status=status.HTTP_400_BAD_REQUEST)
-        except User.DoesNotExist:
-            return Response({"error": "User not found."}, status=status.HTTP_404_NOT_FOUND)
-
+# class VerifyCodeView(generics.GenericAPIView):
+#     serializer_class = CodeSerializer
+#
+#     def post(self, request, *args, **kwargs):
+#         serializer = self.get_serializer(data=request.data)
+#         serializer.is_valid(raise_exception=True)
+#         code = serializer.validated_data['code']
+#
+#         phone = request.session.get('phone')
+#         if not phone:
+#             return Response({"error": "Telefon raqami ko'rsatilmagan."}, status=status.HTTP_400_BAD_REQUEST)
+#
+#         # Access tokenni olish
+#         token = request.META.get('HTTP_AUTHORIZATION')
+#         if not token or not token.startswith('Bearer '):
+#             return Response({"error": "Token taqdim etilmagan."}, status=status.HTTP_401_UNAUTHORIZED)
+#
+#         try:
+#             user = User.objects.get(phone=phone)
+#             if user.code == code:
+#                 return Response({"message": "Kod tasdiqlandi. Parolni tiklashni davom eting."}, status=status.HTTP_200_OK)
+#             else:
+#                 return Response({"error": "Yaroqsiz kod."}, status=status.HTTP_400_BAD_REQUEST)
+#         except User.DoesNotExist:
+#             return Response({"error": "Foydalanuvchi topilmadi."}, status=status.HTTP_404_NOT_FOUND)
+#
 
 class ResetPasswordView(generics.GenericAPIView):
     serializer_class = ResetPasswordSerializer
@@ -253,20 +363,20 @@ class ResetPasswordView(generics.GenericAPIView):
 
         phone = request.session.get('phone')
         if not phone:
-            return Response({"error": "Phone number not provided."}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"error": "Telefon raqami ko'rsatilmagan."}, status=status.HTTP_400_BAD_REQUEST)
 
         # Access tokenni olish
         token = request.META.get('HTTP_AUTHORIZATION')
         if not token or not token.startswith('Bearer '):
-            return Response({"error": "Token not provided."}, status=status.HTTP_401_UNAUTHORIZED)
+            return Response({"error": "Token taqdim etilmagan."}, status=status.HTTP_401_UNAUTHORIZED)
 
         try:
             user = User.objects.get(phone=phone)
             user.set_password(serializer.validated_data['new_password'])  # Yangi parolni o'rnatish
             user.save()
-            return Response({"message": "Password has been reset successfully."}, status=status.HTTP_200_OK)
+            return Response({"message": "Parol muvaffaqiyatli tiklandi."}, status=status.HTTP_200_OK)
         except User.DoesNotExist:
-            return Response({"error": "User not found."}, status=status.HTTP_404_NOT_FOUND)
+            return Response({"error": "Foydalanuvchi topilmadi."}, status=status.HTTP_404_NOT_FOUND)
 
 
 
