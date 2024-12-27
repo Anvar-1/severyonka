@@ -21,12 +21,6 @@ class ProductListCreateAPIView(generics.ListCreateAPIView):
     serializer_class = ProductSerializer
     permission_classes = [IsAuthenticated]
 
-    # def perform_create(self, serializer):
-    #     user = self.request.user
-    #     if user.is_authenticated:
-    #         serializer.save(User=user)
-    #     else:
-    #         raise ValidationError("User must be authenticated to create a product.")
     def get_object(self):
         return self.request.user
 

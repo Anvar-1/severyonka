@@ -287,7 +287,6 @@ class SendCodeView(generics.GenericAPIView):
             request.session['phone'] = phone  # Telefon raqamini sessiyada saqlash
             code = user.create_verify_code()  # Generate and save the code
 
-            # Send the verification code via SMS
             self.send_sms(phone, code)
 
             return Response({"message": "Tasdiqlash kodi yuborildi.", "access": user.token()['access']}, status=status.HTTP_200_OK)
@@ -327,32 +326,6 @@ class SendCodeView(generics.GenericAPIView):
         else:
             print("Autentifikatsiya xatosi:", auth_data)
 
-# class VerifyCodeView(generics.GenericAPIView):
-#     serializer_class = CodeSerializer
-#
-#     def post(self, request, *args, **kwargs):
-#         serializer = self.get_serializer(data=request.data)
-#         serializer.is_valid(raise_exception=True)
-#         code = serializer.validated_data['code']
-#
-#         phone = request.session.get('phone')
-#         if not phone:
-#             return Response({"error": "Telefon raqami ko'rsatilmagan."}, status=status.HTTP_400_BAD_REQUEST)
-#
-#         # Access tokenni olish
-#         token = request.META.get('HTTP_AUTHORIZATION')
-#         if not token or not token.startswith('Bearer '):
-#             return Response({"error": "Token taqdim etilmagan."}, status=status.HTTP_401_UNAUTHORIZED)
-#
-#         try:
-#             user = User.objects.get(phone=phone)
-#             if user.code == code:
-#                 return Response({"message": "Kod tasdiqlandi. Parolni tiklashni davom eting."}, status=status.HTTP_200_OK)
-#             else:
-#                 return Response({"error": "Yaroqsiz kod."}, status=status.HTTP_400_BAD_REQUEST)
-#         except User.DoesNotExist:
-#             return Response({"error": "Foydalanuvchi topilmadi."}, status=status.HTTP_404_NOT_FOUND)
-#
 
 class ResetPasswordView(generics.GenericAPIView):
     serializer_class = ResetPasswordSerializer

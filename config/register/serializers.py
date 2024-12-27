@@ -1,7 +1,6 @@
 from rest_framework import serializers, status
 from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
-
 from . import views
 from .models import User, UserProfile, SmsVerification
 from django.contrib.auth.password_validation import validate_password
@@ -9,7 +8,6 @@ import requests
 from django.contrib.auth import get_user_model
 
 User = get_user_model()
-
 
 class UserSerializer(serializers.ModelSerializer):
     confirm_password = serializers.CharField(write_only=True)
@@ -116,7 +114,6 @@ class UserProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = ['phone', 'password', 'confirm_password']
-
 
 
 ##################### reset-password ##########################

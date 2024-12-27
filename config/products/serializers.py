@@ -23,10 +23,6 @@ class ProductSerializer(serializers.ModelSerializer):
         model = Product
         fields = ['id', 'name', 'description', 'brand', 'title', 'created_at', 'price', 'image', 'card_number', 'category_id', 'discounts', 'status']
 
-    # def validate_image(self, value):
-    #     if not value.name.endswith(('jpg', 'jpeg', 'png')):
-    #         raise ValidationError("Image must be in JPG, JPEG, or PNG format.")
-    #     return     value
 
 class CardSerializer(serializers.ModelSerializer):
     class Meta:

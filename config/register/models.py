@@ -4,7 +4,6 @@ from django.db import models
 from phonenumbers import timezone
 from rest_framework_simplejwt.tokens import RefreshToken
 
-
 ORDIRNARY_USER, MANAGER, ADMIN = ('ordinary user', 'manager', 'admin')
 
 class User(AbstractUser):
