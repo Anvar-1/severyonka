@@ -78,12 +78,12 @@ DATABASES = {
 
 # DATABASES = {
 #     'default': {
-#         'ENGINE': 'django.db.backends.postgresql_psycopg2',
-#         'NAME': 'Severyonka.db',
-#         'USER': 'anvar',
+#         # 'ENGINE': 'django.db.backends.postgresql_psycopg2',
+#         'NAME': 'Severyonka_app.db',
+#         'USER': 'regista3_severyonka_app',
 #         'PASSWORD': '21061983anvar',
 #         'HOST': 'localhost',
-#         'PORT': '5432',
+#         # 'PORT': '5432',
 #     }
 # }
 

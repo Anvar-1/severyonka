@@ -6,12 +6,12 @@ from .models import User, UserProfile, SmsVerification
 from .serializers import UserSerializer, ChangeUserInformation, LogoutSerializer, \
     UserProfileSerializer, ResetPasswordSerializer, CodeSerializer, PhoneSerializer, VerifyCodeSerializer
 from rest_framework.authtoken.views import ObtainAuthToken
-from rest_framework.authtoken.models import Token
-from rest_framework.exceptions import AuthenticationFailed
+# from rest_framework.authtoken.models import Token
+# from rest_framework.exceptions import AuthenticationFailed
 from rest_framework import generics, permissions, status, views
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth import get_user_model
-from rest_framework_simplejwt.exceptions import TokenError
+from rest_framework_simplejwt.exceptions import TokenError, AuthenticationFailed
 from rest_framework.permissions import IsAuthenticated
 from .serializers import UserSerializer
 from rest_framework.response import Response
@@ -36,27 +36,27 @@ class UserCreateView(generics.CreateAPIView):
 
         if user.phone:
             code = user.create_verify_code()
-            self.send_sms(user.phone, code)  # SMS yuborish
+            self.send_sms(user.phone, code)
 
         return Response({
             "message": "Foydalanuvchi muvaffaqiyatli ro'yxatdan o'tdi.",
             "user": {
                 "id": user.id,
                 "username": user.username,
-                "email": user.email,
+                "last_name": user.last_name,
                 "phone": user.phone,
-                "number_card": user.number_card,
                 "birth_day": user.birth_day,
                 "gender": user.gender,
                 "region": user.region,
                 "populated_area": user.populated_area,
-                "password": request.data.get('password'),
-                "confirm_password": request.data.get('confirm_password')
+                "number_card": user.number_card,
+                "email": user.email,
             },
-            "sms_code": code,
-            "access": str(refresh.access_token),  # Access token
-            "refresh": str(refresh)  # Refresh token
+            "sms_code": code,  # Ensure code is a string
+            "access": str(refresh.access_token),
+            "refresh": str(refresh)
         }, status=status.HTTP_201_CREATED)
+
 
 
     def send_sms(self, phone, code):
@@ -201,7 +201,7 @@ class VerifyCodeAPIView(APIView):
         code = self.request.data.get('code')
         self.check_verify(user, code)
 
-        user.is_confirmed = True  # Kod to'g'ri bo'lsa tasdiqlash
+        user.is_confirmed = True
         user.save()
 
         return Response(
@@ -214,7 +214,6 @@ class VerifyCodeAPIView(APIView):
 
     @staticmethod
     def check_verify(user, code):
-        # Code va telefon raqami orqali tekshirish
         verifies = User.objects.filter(code=code, phone=user.phone, is_confirmed=False)
         print("Verifies queryset: ", verifies)
         print("Phone", user.phone)
@@ -226,7 +225,6 @@ class VerifyCodeAPIView(APIView):
             }
             raise ValidationError(data)
         else:
-            # Kod to'g'ri bo'lsa, tasdiqlashni yangilaymiz
             user.save()
         if user.is_confirmed == False:
             verifies.update(is_confirmed=True)
@@ -284,14 +282,22 @@ class SendCodeView(generics.GenericAPIView):
 
         try:
             user = User.objects.get(phone=phone)
-            request.session['phone'] = phone  # Telefon raqamini sessiyada saqlash
-            code = user.create_verify_code()  # Generate and save the code
+            request.session['phone'] = phone
+            code = user.create_verify_code()
 
             self.send_sms(phone, code)
+            token_data = user.token()
 
-            return Response({"message": "Tasdiqlash kodi yuborildi.", "access": user.token()['access']}, status=status.HTTP_200_OK)
+            return Response({
+                "message": "Tasdiqlash kodi yuborildi.",
+                "access": token_data.get('access'),
+                "refresh": token_data.get('refresh'),
+                "sms_code": str(code)
+            }, status=status.HTTP_200_OK)
         except User.DoesNotExist:
             return Response({"error": "Foydalanuvchi topilmadi."}, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     def send_sms(self, phone, code):
         # Eskiz SMS API autentifikatsiya

@@ -10,24 +10,14 @@ from django.contrib.auth import get_user_model
 User = get_user_model()
 
 class UserSerializer(serializers.ModelSerializer):
-    confirm_password = serializers.CharField(write_only=True)
-
     class Meta:
         model = User
-        fields = ['id', 'username', 'email', 'phone', 'password', 'confirm_password', 'number_card', 'role', 'birth_day', 'gender',
-                  'region', 'populated_area']
+        fields = ['id', 'username', 'last_name', 'phone', 'password', 'role',
+                  'birth_day', 'gender', 'region', 'populated_area', 'number_card', 'email',]
         extra_kwargs = {'password': {'write_only': True}}
 
-    def validate(self, attrs):
-        password = attrs.get("password")
-        confirm_password = attrs.get('confirm_password')
-        if password != confirm_password:
-            raise ValidationError("Parollar bir-biriga mos emas!")
-        return attrs
-
     def to_representation(self, instance):
-        data = super(UserSerializer, self).to_representation(instance)
-        data['password'] = instance.password  # Parolni qo'shish
+        data = super().to_representation(instance)
         return data
 
 
@@ -56,22 +46,8 @@ class VerifyCodeSerializer(serializers.Serializer):
 class ChangeUserInformation(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ['id', 'username', 'password', 'confirm_password']
+        fields = ['id', 'username', 'password']
 
-    def validate(self, data):
-        password = data.get('password', None)
-        confirm_password = data.get('confirm_password', None)
-        if password !=confirm_password:
-            raise ValidationError(
-                {
-                    "message": "Parolingiz va tasdiqlash parolingiz bir-biriga teng emas"
-                }
-            )
-        if password:
-            validate_password(password)
-            validate_password(confirm_password)
-
-        return data
 
     def validate_username(self, username):
         if len(username) < 5 or len(username) > 30:
@@ -113,7 +89,7 @@ class LogoutSerializer(serializers.Serializer):
 class UserProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ['phone', 'password', 'confirm_password']
+        fields = ['phone', 'password']
 
 
 ##################### reset-password ##########################

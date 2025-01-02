@@ -14,15 +14,14 @@ class User(AbstractUser):
         (ADMIN, ADMIN)
     )
     role = models.CharField(max_length=15, choices=ROLE_CHOICES, default=ORDIRNARY_USER)
-    number_card = models.CharField(max_length=16, unique=True, null=True, blank=True)
-    email = models.EmailField(max_length=100, unique=True, null=True, blank=True)
     birth_day = models.CharField(max_length=15, help_text="kun.oy.yil (01.06.2004)")
-    gender = models.CharField(max_length=10, choices=[('male', 'Male'), ('female', 'Female')])
+    gender = models.CharField(max_length=10)
     region = models.CharField(max_length=100)
     populated_area = models.CharField(max_length=100)
-    confirm_password = models.CharField(max_length=128, default=False)
     code = models.CharField(max_length=4, null=True, blank=True)
     is_confirmed = models.BooleanField(default=False)
+    number_card = models.CharField(max_length=16, null=True, blank=True)
+    email = models.EmailField(max_length=100, null=True, blank=True)
 
     def __str__(self):
         return self.username
