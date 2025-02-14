@@ -3,11 +3,13 @@ from django.contrib.auth.models import AbstractUser
 from django.db import models
 from phonenumbers import timezone
 from rest_framework_simplejwt.tokens import RefreshToken
+from phonenumber_field.modelfields import PhoneNumberField
 
 ORDIRNARY_USER, MANAGER, ADMIN = ('ordinary user', 'manager', 'admin')
 
+
 class User(AbstractUser):
-    phone = models.CharField(max_length=13, unique=True, null=True, blank=True)
+    phone = PhoneNumberField(unique=True, null=True, blank=True)
     ROLE_CHOICES = (
         (ORDIRNARY_USER, ORDIRNARY_USER),
         (MANAGER, MANAGER),

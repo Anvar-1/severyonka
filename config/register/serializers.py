@@ -12,13 +12,15 @@ User = get_user_model()
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ['id', 'username', 'last_name', 'phone', 'password', 'role',
-                  'birth_day', 'gender', 'region', 'populated_area', 'number_card', 'email',]
+        fields = ['id', 'username', 'last_name', 'phone', 'password', 'role', 'birth_day', 'gender',
+                  'region', 'populated_area', 'number_card', 'email']
         extra_kwargs = {'password': {'write_only': True}}
 
-    def to_representation(self, instance):
-        data = super().to_representation(instance)
-        return data
+    def create(self, validated_data):
+        user = User(**validated_data)
+        user.set_password(validated_data['password'])  # Parolni shifrlash
+        user.save()
+        return user
 
 
 ###################### sms kodni tekshirish ########################
@@ -41,13 +43,13 @@ class VerifyCodeSerializer(serializers.Serializer):
 
         return attrs
 
-     ####################### EDIT PROFILE ###################
+    ####################### EDIT PROFILE ###################
+
 
 class ChangeUserInformation(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = ['id', 'username', 'password']
-
 
     def validate_username(self, username):
         if len(username) < 5 or len(username) > 30:
@@ -74,7 +76,6 @@ class ChangeUserInformation(serializers.ModelSerializer):
         instance.save()
         return instance
 
-
     def create(self, validated_data):
         user = User(**validated_data)
         user.set_password(validated_data['password'])
@@ -97,8 +98,15 @@ class UserProfileSerializer(serializers.ModelSerializer):
 class PhoneSerializer(serializers.Serializer):
     phone = serializers.CharField(max_length=13)
 
+    def validate_phone(self, value):
+        if not value.isdigit() or len(value) < 9:
+            raise serializers.ValidationError("Telefon raqam noto'g'ri formatda.")
+        return value
+
+
 class CodeSerializer(serializers.Serializer):
     code = serializers.CharField(max_length=4)
+
 
 class ResetPasswordSerializer(serializers.Serializer):
     new_password = serializers.CharField(max_length=128)
@@ -106,5 +114,5 @@ class ResetPasswordSerializer(serializers.Serializer):
 
     def validate(self, data):
         if data['new_password'] != data['confirm_password']:
-            raise serializers.ValidationError("Passwords do not match.")
+            raise serializers.ValidationError("Parollar mos kelmaydi.")
         return data
