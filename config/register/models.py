@@ -5,15 +5,14 @@ from phonenumbers import timezone
 from rest_framework_simplejwt.tokens import RefreshToken
 from phonenumber_field.modelfields import PhoneNumberField
 
-ORDIRNARY_USER, MANAGER, ADMIN = ('ordinary user', 'manager', 'admin')
+ORDIRNARY_USER, MANAGER = ('ordinary user', 'manager')
 
 
 class User(AbstractUser):
     phone = PhoneNumberField(unique=True, null=True, blank=True)
     ROLE_CHOICES = (
         (ORDIRNARY_USER, ORDIRNARY_USER),
-        (MANAGER, MANAGER),
-        (ADMIN, ADMIN)
+        (MANAGER, MANAGER)
     )
     role = models.CharField(max_length=15, choices=ROLE_CHOICES, default=ORDIRNARY_USER)
     birth_day = models.CharField(max_length=15, help_text="kun.oy.yil (01.06.2004)")

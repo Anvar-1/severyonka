@@ -318,4 +318,3 @@ class ResetPasswordAPIView(APIView):
         user.save()
 
         return Response({"message": "Parol muvaffaqiyatli o'zgartirildi."}, status=status.HTTP_200_OK)
-

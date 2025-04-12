@@ -10,20 +10,24 @@ class CategorySerializer(serializers.ModelSerializer):
         fields = ['id', 'name']
 
 
+class ProductSerializer(serializers.ModelSerializer):
+    average_star = serializers.ReadOnlyField()
+    star_count = serializers.ReadOnlyField()
+    class Meta:
+        model = Product
+        fields = [
+            'id', 'name', 'image', 'price', 'cash_price',
+            'card_price', 'description', 'rating',
+            'created_at', 'average_star', 'star_count', 'category'
+        ]
+
+
 class DiscountSerializer(serializers.ModelSerializer):
     class Meta:
         model = Discount
-        fields = ['id', 'product', 'percentage', 'start_date', 'end_date']
+        fields = ['id', 'product', 'percentage', 'start_date', 'end_date','status']
 
 
-class ProductSerializer(serializers.ModelSerializer):
-    discounts = DiscountSerializer(many=True, read_only=True)
-    average_star = serializers.ReadOnlyField()
-    star_count = serializers.ReadOnlyField()
-
-    class Meta:
-        model = Product
-        fields = ['id', 'name', 'description', 'brand', 'title', 'created_at', 'price', 'image', 'category_id', 'average_star', 'star_count', 'status']
 
 
 

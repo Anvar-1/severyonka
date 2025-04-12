@@ -11,6 +11,7 @@ from phonenumber_field.modelfields import PhoneNumberField
 
 User = get_user_model()
 
+
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
@@ -137,3 +138,7 @@ class ResetPasswordSerializer(serializers.Serializer):
         if data['new_password'] != data['confirm_password']:
             raise serializers.ValidationError("Parollar mos kelmaydi.")
         return data
+
+
+
+

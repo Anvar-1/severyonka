@@ -5,15 +5,13 @@ from django.conf.global_settings import AUTH_USER_MODEL
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
-# Build paths inside the project like this: BASE_DIR / 'subdir'.
-BASE_DIR = Path(__file__).resolve().parent.parent
 
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.1/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-on8nq5j^&^+zte16e0bssq73ejy=x%gy530r5hbdl*39ztrm%n'
+SECRET_KEY = 'django-insecure-!9)5su!6kar#xbz0$6gmmi&uk7qeitbmy3=q53km3d0s&8$fvn'
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True

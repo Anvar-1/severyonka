@@ -18,6 +18,4 @@ urlpatterns = [
         path('send_code/', SendCodeAPIView.as_view(), name='send_code'),
     path('verify-code/', VerifyCodeAPIView.as_view(), name='verify-code'),
     path('reset-password/', ResetPasswordAPIView.as_view(), name='reset-password'),
-
-
 ]

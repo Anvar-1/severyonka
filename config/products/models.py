@@ -9,28 +9,45 @@ class Category(models.Model):
         return self.name
 
 
-class Product(models.Model):
-    name = models.CharField(max_length=50)
-    description = models.TextField()
-    brand = models.CharField(max_length=50)
-    title = models.CharField(max_length=50)
-    created_at = models.DateTimeField()
-    price = models.DecimalField(max_digits=10, decimal_places=2)
-    image = models.ImageField(upload_to='products/images/', null=True, blank=True)
-    category_id = models.ForeignKey('Category', related_name='products', on_delete=models.CASCADE)
-    status = models.CharField(max_length=20,
-                              choices=[('in_progress', 'Yigilyapti'), ('dispatched', 'Dostavka junatildi')],
-                              default='in_progress')
-    average_star = models.DecimalField(max_digits=3, decimal_places=2, default=0)
-    star_count = models.IntegerField(default=0)
+class Discount(models.Model):
+    product = models.ForeignKey('Product', related_name='discounts', on_delete=models.CASCADE)
+    percentage = models.DecimalField(max_digits=5, decimal_places=2)
+    start_date = models.DateTimeField()
+    end_date = models.DateTimeField()
+    status = models.BooleanField(default=False)
+    case = models.CharField(max_length=255)
+    total_percentage = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
 
-    def update_star(self, star):
-        """Yulduzlar reytingini yangilash."""
-        total_stars = self.average_star * self.star_count
-        self.star_count += 1
-        new_average = (total_stars + star) / self.star_count
-        self.average_star = new_average
-        self.save()
+    def __str__(self):
+        return f'{self.percentage}% off on {self.product.name}'
+
+    def get_discounted_price(self):
+        original_price = self.product.price
+        percentage = self.percentage  # 'self.percentage' ni ishlatish kerak
+        total = original_price - (original_price * percentage / 100)
+        return total
+
+    def clean(self):
+        # Get discounted price and assign it to total_percentage
+        self.total_percentage = self.get_discounted_price()
+
+    def save(self, *args, **kwargs):
+        self.clean()
+        super(Discount, self).save(*args, **kwargs)
+
+
+class Product(models.Model):
+    name = models.CharField(max_length=255)
+    image = models.ImageField(blank=True, null=True)
+    price = models.DecimalField(max_digits=10, decimal_places=2)
+    cash_price = models.DecimalField(max_digits=10, decimal_places=2, default=0.0)
+    card_price = models.DecimalField(max_digits=10, decimal_places=2, default=0.0)
+    description = models.TextField()
+    additional_info = models.TextField(blank=True, null=True)
+    rating = models.PositiveIntegerField(default=5)
+    created_at = models.DateTimeField(auto_now_add=True)
+    category = models.ForeignKey(Category, models.CASCADE, null=True, blank=True)
+    discount = models.ForeignKey('Discount', on_delete=models.CASCADE, related_name='discounts', null=True, blank=True)
 
     def __str__(self):
         return self.name
@@ -66,13 +83,3 @@ class Order(models.Model):
 
     def __str__(self):
         return f'Order {self.id} by {self.user.name}'
-
-
-class Discount(models.Model):
-    product = models.ForeignKey(Product, related_name='discounts', on_delete=models.CASCADE)
-    percentage = models.DecimalField(max_digits=5, decimal_places=2)
-    start_date = models.DateTimeField()
-    end_date = models.DateTimeField()
-
-    def __str__(self):
-        return f'{self.percentage}% off on {self.product.name}'
